@@ -7,6 +7,7 @@ mod node;
 mod render;
 pub mod widget;
 pub use anchors::*;
+use bevy_reflect::RegisterTypeBuilder;
 pub use flex::*;
 pub use focus::*;
 pub use margins::*;
@@ -20,6 +21,7 @@ pub mod prelude {
 use bevy_app::prelude::*;
 use bevy_ecs::{IntoSystem, SystemStage};
 use bevy_render::render_graph::RenderGraph;
+use bevy_text::{CalculatedSize, Text};
 
 #[derive(Default)]
 pub struct UiPlugin;
@@ -51,7 +53,28 @@ impl Plugin for UiPlugin {
                 stage::UI_POST_UPDATE,
                 window_nodes_transform_system.system(),
             )
-            .add_system_to_stage(bevy_render::stage::DRAW, widget::draw_text_system.system());
+            .add_system_to_stage(bevy_render::stage::DRAW, widget::draw_text_system.system())
+            .register_type::<Node>()
+            .register_type::<Val>()
+            .register_type::<Style>()
+            .register_type::<Display>()
+            .register_type::<PositionType>()
+            .register_type::<Direction>()
+            .register_type::<FlexDirection>()
+            .register_type::<FlexWrap>()
+            .register_type::<AlignItems>()
+            .register_type::<AlignSelf>()
+            .register_type::<AlignContent>()
+            .register_type::<JustifyContent>()
+            .register_type::<AlignItems>()
+            .register_type::<AlignSelf>()
+            .register_type::<AlignContent>()
+            .register_type::<bevy_math::Rect<Val>>()
+            .register_type::<bevy_math::Size<Val>>()
+            .register_type::<Option<f32>>()
+            .register_type::<Text>()
+            .register_type::<CalculatedSize>()
+            .register_type::<FocusPolicy>();
 
         let resources = app.resources();
         let mut render_graph = resources.get_mut::<RenderGraph>().unwrap();

@@ -260,7 +260,7 @@ impl<'a> ReflectResource {
         (self.release_resource)(resources)
     }
 
-    pub unsafe  fn release_mut_resource(&self, resources: &Resources) {
+    pub unsafe fn release_mut_resource(&self, resources: &Resources) {
         (self.release_mut_resource)(resources)
     }
 }
@@ -297,12 +297,8 @@ impl<'a, R: Resource + Reflect + FromResources> FromType<R> for ReflectResource 
                     .as_mut()
                     .unwrap()
             },
-            borrow_resource: |resources| {
-                resources.borrow::<R>()
-            },
-            borrow_mut_resource:  |resources| {
-                resources.borrow_mut::<R>()
-            },
+            borrow_resource: |resources| resources.borrow::<R>(),
+            borrow_mut_resource: |resources| resources.borrow_mut::<R>(),
             release_resource: |resources| unsafe {
                 resources.release::<R>();
             },

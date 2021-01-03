@@ -48,8 +48,8 @@ impl AddAssign<f32> for Val {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
-#[reflect_value()]
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect)]
+#[reflect_value(PartialEq, Serialize, Deserialize)]
 pub enum ZIndex {
     None,
     Auto,
@@ -72,6 +72,7 @@ impl ZIndex {
     }
 }
 #[derive(Clone, PartialEq, Debug, Reflect)]
+#[reflect(Component)]
 pub struct Style {
     pub display: Display,
     pub position_type: PositionType,

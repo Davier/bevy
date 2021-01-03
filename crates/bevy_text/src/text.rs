@@ -1,13 +1,16 @@
 use bevy_asset::Handle;
 use bevy_math::Size;
+use bevy_reflect::{Reflect, ReflectComponent};
 use bevy_render::color::Color;
 use glyph_brush_layout::{HorizontalAlign, VerticalAlign};
 
 use crate::Font;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Reflect)]
+#[reflect(Component)]
 pub struct Text {
     pub sections: Vec<TextSection>,
+    #[reflect(ignore)]
     pub alignment: TextAlignment,
 }
 
@@ -63,7 +66,7 @@ impl Text {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Reflect)]
 pub struct TextSection {
     pub value: String,
     pub style: TextStyle,
@@ -84,7 +87,7 @@ impl Default for TextAlignment {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Reflect)]
 pub struct TextStyle {
     pub font: Handle<Font>,
     pub font_size: f32,
@@ -101,7 +104,8 @@ impl Default for TextStyle {
     }
 }
 
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug, Reflect)]
+#[reflect(Component)]
 pub struct CalculatedSize {
     pub size: Size,
 }

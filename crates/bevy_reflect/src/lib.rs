@@ -33,6 +33,8 @@ pub mod serde;
 pub mod prelude {
     #[cfg(feature = "bevy_ecs")]
     pub use crate::ReflectComponent;
+    #[cfg(feature = "bevy_ecs")]
+    pub use crate::ReflectResource;
     #[cfg(feature = "bevy_app")]
     pub use crate::RegisterTypeBuilder;
     pub use crate::{

@@ -74,7 +74,8 @@ impl Plugin for UiPlugin {
             .register_type::<Option<f32>>()
             .register_type::<Text>()
             .register_type::<CalculatedSize>()
-            .register_type::<FocusPolicy>();
+            .register_type::<FocusPolicy>()
+            .register_type::<ZIndex>();
 
         let resources = app.resources();
         let mut render_graph = resources.get_mut::<RenderGraph>().unwrap();

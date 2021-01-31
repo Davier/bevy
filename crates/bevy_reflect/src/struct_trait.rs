@@ -15,6 +15,10 @@ pub trait Struct: Reflect {
     fn clone_dynamic(&self) -> DynamicStruct;
 }
 
+pub trait StaticStruct: Struct {
+    fn clone_static(dyn_struct: &DynamicStruct) -> Box<dyn Reflect>;
+}
+
 pub struct FieldIter<'a> {
     pub(crate) struct_val: &'a dyn Struct,
     pub(crate) index: usize,

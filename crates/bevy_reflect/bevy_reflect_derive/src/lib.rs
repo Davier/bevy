@@ -105,6 +105,16 @@ pub fn derive_reflect(input: TokenStream) -> TokenStream {
         })
         .map(|(f, _attr, i)| (*f, *i))
         .collect::<Vec<(&Field, usize)>>();
+    let ignored_fields = fields_and_args
+        .iter()
+        .filter(|(_field, attrs, _i)| {
+            attrs
+                .as_ref()
+                .map(|attrs| attrs.ignore.unwrap_or(false))
+                .unwrap_or(false)
+        })
+        .map(|(f, _attr, i)| (*f, *i))
+        .collect::<Vec<(&Field, usize)>>();
 
     let modules = get_modules();
     let bevy_reflect_path = get_path(&modules.bevy_reflect);
@@ -144,6 +154,7 @@ pub fn derive_reflect(input: TokenStream) -> TokenStream {
             &bevy_reflect_path,
             &reflect_attrs,
             &active_fields,
+            &ignored_fields,
         ),
         DeriveType::TupleStruct => impl_tuple_struct(
             type_name,
@@ -170,6 +181,7 @@ fn impl_struct(
     bevy_reflect_path: &Path,
     reflect_attrs: &ReflectAttrs,
     active_fields: &[(&Field, usize)],
+    ignored_fields: &[(&Field, usize)],
 ) -> TokenStream {
     let field_names = active_fields
         .iter()
@@ -182,6 +194,16 @@ fn impl_struct(
         })
         .collect::<Vec<String>>();
     let field_idents = active_fields
+        .iter()
+        .map(|(field, index)| {
+            field
+                .ident
+                .as_ref()
+                .map(|ident| Member::Named(ident.clone()))
+                .unwrap_or_else(|| Member::Unnamed(Index::from(*index)))
+        })
+        .collect::<Vec<_>>();
+    let ignored_field_idents = ignored_fields
         .iter()
         .map(|(field, index)| {
             field
@@ -258,6 +280,18 @@ fn impl_struct(
                 dynamic.set_name(self.type_name().to_string());
                 #(dynamic.insert_boxed(#field_names, self.#field_idents.clone_value());)*
                 dynamic
+            }
+        }
+
+        impl #impl_generics #bevy_reflect_path::StaticStruct for #struct_name#ty_generics #where_clause {
+            fn clone_static(dyn_struct: &#bevy_reflect_path::DynamicStruct) -> std::boxed::Box<dyn #bevy_reflect_path::Reflect> {
+                use #bevy_reflect_path::Struct;
+                std::boxed::Box::<Self>::new(
+                    Self{
+                        #(#field_idents: dyn_struct.field_at(#field_indices).unwrap().clone_value().take().unwrap(),)*
+                        #(#ignored_field_idents: Default::default(),)*
+                    }
+                )
             }
         }
 

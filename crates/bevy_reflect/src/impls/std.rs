@@ -1,6 +1,6 @@
 use crate::{
-    map_partial_eq, serde::Serializable, DynamicMap, List, ListIter, Map, MapIter, Reflect,
-    ReflectDeserialize, ReflectMut, ReflectRef,
+    map_partial_eq, serde::Serializable, DynamicMap, DynamicStruct, List, ListIter, Map, MapIter,
+    Reflect, ReflectDeserialize, ReflectMut, ReflectRef, StaticStruct,
 };
 
 use bevy_reflect_derive::impl_reflect_value;
@@ -28,7 +28,7 @@ impl_reflect_value!(Option<T: Serialize + Clone + for<'de> Deserialize<'de> + Re
 impl_reflect_value!(HashSet<T: Serialize + Hash + Eq + Clone + for<'de> Deserialize<'de> + Send + Sync + 'static>(Serialize, Deserialize));
 impl_reflect_value!(Range<T: Serialize + Clone + for<'de> Deserialize<'de> + Send + Sync + 'static>(Serialize, Deserialize));
 
-impl<T: Reflect> List for Vec<T> {
+impl<T: Reflect + StaticStruct> List for Vec<T> {
     fn get(&self, index: usize) -> Option<&dyn Reflect> {
         <[T]>::get(self, index).map(|value| value as &dyn Reflect)
     }
@@ -49,17 +49,23 @@ impl<T: Reflect> List for Vec<T> {
     }
 
     fn push(&mut self, value: Box<dyn Reflect>) {
-        let value = value.take::<T>().unwrap_or_else(|value| {
-            panic!(
-                "Attempted to push invalid value of type {}.",
-                value.type_name()
-            )
-        });
+        let value = match value.take::<DynamicStruct>() {
+            Ok(dyn_struct) => {
+                let static_value = T::clone_static(&dyn_struct);
+                static_value.take::<T>().unwrap()
+            }
+            Err(value) => value.take::<T>().unwrap_or_else(|value| {
+                panic!(
+                    "Attempted to push invalid value of type {}.",
+                    value.type_name()
+                )
+            }),
+        };
         Vec::push(self, value);
     }
 }
 
-impl<T: Reflect> Reflect for Vec<T> {
+impl<T: Reflect + StaticStruct> Reflect for Vec<T> {
     fn type_name(&self) -> &str {
         std::any::type_name::<Self>()
     }

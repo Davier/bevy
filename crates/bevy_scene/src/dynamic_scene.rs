@@ -85,7 +85,7 @@ impl DynamicScene {
                 if world.has_component_type(new_entity, registration.type_id()) {
                     reflect_component.apply_component(world, new_entity, &**component);
                 } else {
-                    reflect_component.add_component(world, resources, new_entity, &**component);
+                    reflect_component.add_component(world, new_entity, &**component);
                 }
             }
         }

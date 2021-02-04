@@ -199,12 +199,7 @@ impl SceneSpawner {
                                 type_name: registration.name().to_string(),
                             }
                         })?;
-                    reflect_component.copy_component(
-                        &scene.world,
-                        world,
-                        *scene_entity,
-                        entity,
-                    );
+                    reflect_component.copy_component(&scene.world, world, *scene_entity, entity);
                 }
             }
         }

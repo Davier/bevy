@@ -232,7 +232,7 @@ fn impl_struct(
     };
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-     // Add FromReflect bound for each field
+    // Add FromReflect bound for each field
     let mut where_from_reflect_clause = if where_clause.is_some() {
         quote! {#where_clause}
     } else if field_count > 0 {
@@ -415,16 +415,16 @@ fn impl_tuple_struct(
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     // Add FromReflect bound for each field
-   let mut where_from_reflect_clause = if where_clause.is_some() {
-       quote! {#where_clause}
-   } else if field_count > 0 {
-       quote! {where}
-   } else {
+    let mut where_from_reflect_clause = if where_clause.is_some() {
+        quote! {#where_clause}
+    } else if field_count > 0 {
+        quote! {where}
+    } else {
         quote! {}
-   };
-   where_from_reflect_clause.extend(quote! {
-       #(#field_types: #bevy_reflect_path::FromReflect,)*
-   });
+    };
+    where_from_reflect_clause.extend(quote! {
+        #(#field_types: #bevy_reflect_path::FromReflect,)*
+    });
 
     TokenStream::from(quote! {
         #get_type_registration_impl

@@ -2,6 +2,7 @@ use crate::{serde::SceneSerializer, Scene};
 use anyhow::Result;
 use bevy_ecs::{EntityMap, Resources, World};
 use bevy_reflect::{Reflect, ReflectComponent, ReflectMapEntities, TypeRegistryArc, TypeUuid};
+use bevy_utils::tracing::trace;
 use serde::Serialize;
 use thiserror::Error;
 
@@ -49,6 +50,8 @@ impl DynamicScene {
                                 entities[index].components.push(component.clone_value());
                             }
                         }
+                    } else {
+                        trace!("Unregistered component: {}", type_info.type_name());
                     }
                 }
             }

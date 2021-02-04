@@ -211,7 +211,7 @@ mod tests {
             d: HashMap<usize, i8>,
             e: Bar,
             f: (i32, Vec<isize>, Bar),
-            g: Vec<(Baz, HashMap<usize, Bar>,)>
+            g: Vec<(Baz, HashMap<usize, Bar>)>,
         }
 
         #[derive(Reflect, Eq, PartialEq, Clone, Debug)]
@@ -220,16 +220,14 @@ mod tests {
         }
 
         #[derive(Reflect, Eq, PartialEq, Debug)]
-        struct Baz (String);
+        struct Baz(String);
 
         let mut hash_map = HashMap::default();
         hash_map.insert(1, 1);
         hash_map.insert(2, 2);
 
         let mut hash_map_baz = HashMap::default();
-        hash_map_baz.insert(1, Bar{
-            x: 0
-        });
+        hash_map_baz.insert(1, Bar { x: 0 });
 
         let mut foo = Foo {
             a: 1,
@@ -238,7 +236,7 @@ mod tests {
             d: hash_map,
             e: Bar { x: 1 },
             f: (1, vec![1, 2], Bar { x: 1 }),
-            g: vec![(Baz("string".to_string()), hash_map_baz)]
+            g: vec![(Baz("string".to_string()), hash_map_baz)],
         };
 
         let mut foo_patch = DynamicStruct::default();
@@ -275,7 +273,7 @@ mod tests {
             });
             tuple.insert({
                 let mut map = DynamicMap::default();
-                map.insert(1usize,{
+                map.insert(1usize, {
                     let mut struct_ = DynamicStruct::default();
                     struct_.insert("x", 7u32);
                     struct_
@@ -293,9 +291,7 @@ mod tests {
         hash_map.insert(2, 3);
 
         let mut hash_map_baz = HashMap::default();
-        hash_map_baz.insert(1, Bar{
-            x: 7
-        });
+        hash_map_baz.insert(1, Bar { x: 7 });
 
         let expected_foo = Foo {
             a: 2,
@@ -304,12 +300,13 @@ mod tests {
             d: hash_map,
             e: Bar { x: 2 },
             f: (2, vec![3, 4, 5], Bar { x: 2 }),
-            g: vec![(Baz("new_string".to_string()), hash_map_baz.clone())]
+            g: vec![(Baz("new_string".to_string()), hash_map_baz.clone())],
         };
 
         assert_eq!(foo, expected_foo);
 
-        let new_foo = Foo::from_reflect(&foo_patch).expect("error while creating a concrete type from a dynamic type");
+        let new_foo = Foo::from_reflect(&foo_patch)
+            .expect("error while creating a concrete type from a dynamic type");
 
         let mut hash_map = HashMap::default();
         hash_map.insert(2, 3);
@@ -321,7 +318,7 @@ mod tests {
             d: hash_map,
             e: Bar { x: 2 },
             f: (2, vec![3, 4, 5], Bar { x: 2 }),
-            g: vec![(Baz("new_string".to_string()), hash_map_baz)]
+            g: vec![(Baz("new_string".to_string()), hash_map_baz)],
         };
 
         assert_eq!(new_foo, expected_new_foo);

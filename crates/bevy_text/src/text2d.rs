@@ -11,10 +11,10 @@ use bevy_render::{
 use bevy_sprite::{TextureAtlas, QUAD_HANDLE};
 use bevy_transform::prelude::{GlobalTransform, Transform};
 use bevy_window::Windows;
-use glyph_brush_layout::{HorizontalAlign, VerticalAlign};
 
 use crate::{
-    CalculatedSize, DefaultTextPipeline, DrawableText, Font, FontAtlasSet, Text, TextError,
+    CalculatedSize, DefaultTextPipeline, DrawableText, Font, FontAtlasSet, HorizontalAlign, Text,
+    TextError, VerticalAlign,
 };
 
 /// The bundle of components needed to draw text in a 2D scene via the Camera2dBundle.
@@ -90,12 +90,12 @@ pub fn draw_text2d_system(
 
         if let Some(text_glyphs) = text_pipeline.get_glyphs(&entity) {
             let position = global_transform.translation
-                + match text.alignment.vertical.into() {
+                + match text.alignment.vertical {
                     VerticalAlign::Top => Vec3::zero(),
                     VerticalAlign::Center => Vec3::new(0.0, -height * 0.5, 0.0),
                     VerticalAlign::Bottom => Vec3::new(0.0, -height, 0.0),
                 }
-                + match text.alignment.horizontal.into() {
+                + match text.alignment.horizontal {
                     HorizontalAlign::Left => Vec3::new(-width, 0.0, 0.0),
                     HorizontalAlign::Center => Vec3::new(-width * 0.5, 0.0, 0.0),
                     HorizontalAlign::Right => Vec3::zero(),

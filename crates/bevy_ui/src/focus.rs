@@ -5,8 +5,8 @@ use bevy_input::{mouse::MouseButton, touch::Touches, Input};
 use bevy_reflect::{Reflect, ReflectComponent, ReflectDeserialize};
 use bevy_transform::components::GlobalTransform;
 use bevy_window::Windows;
+use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use serde::{Serialize, Deserialize};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Interaction {

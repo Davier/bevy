@@ -1,4 +1,7 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    ptr::NonNull,
+};
 
 use crate::{
     component::{Component, ComponentFlags},
@@ -14,6 +17,7 @@ pub struct ReflectComponent {
     reflect_component: fn(&World, Entity) -> Option<&dyn Reflect>,
     reflect_component_mut: unsafe fn(&World, Entity) -> Option<ReflectMut>,
     copy_component: fn(&World, &mut World, Entity, Entity),
+    reflect_component_ptr: fn(NonNull<u8>) -> NonNull<dyn Reflect>,
 }
 
 impl ReflectComponent {
@@ -68,6 +72,10 @@ impl ReflectComponent {
             destination_entity,
         );
     }
+
+    pub fn reflect_component_ptr(&self, ptr: NonNull<u8>) -> NonNull<dyn Reflect> {
+        (self.reflect_component_ptr)(ptr)
+    }
 }
 
 impl<C: Component + Reflect + FromWorld> FromType<C> for ReflectComponent {
@@ -105,6 +113,7 @@ impl<C: Component + Reflect + FromWorld> FromType<C> for ReflectComponent {
                         flags: c.flags,
                     })
             },
+            reflect_component_ptr: |ptr: NonNull<u8>| ptr.cast::<C>(),
         }
     }
 }

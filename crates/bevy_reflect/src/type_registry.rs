@@ -8,6 +8,7 @@ use std::{any::TypeId, fmt::Debug, sync::Arc};
 #[derive(Default)]
 pub struct TypeRegistry {
     registrations: HashMap<TypeId, TypeRegistration>,
+    traits: HashMap<TypeId, Vec<TypeId>>,
     short_name_to_id: HashMap<String, TypeId>,
     full_name_to_id: HashMap<String, TypeId>,
     ambiguous_names: HashSet<String>,
@@ -51,6 +52,12 @@ impl TypeRegistry {
         }
         self.full_name_to_id
             .insert(registration.name.to_string(), registration.type_id);
+        for (trait_type_id, _type_data) in &registration.data {
+            self.traits
+                .entry(*trait_type_id)
+                .or_default()
+                .push(registration.type_id);
+        }
         self.registrations
             .insert(registration.type_id, registration);
     }
@@ -89,6 +96,10 @@ impl TypeRegistry {
 
     pub fn iter(&self) -> impl Iterator<Item = &TypeRegistration> {
         self.registrations.values()
+    }
+
+    pub fn get_trait_impls<T: TypeData>(&self) -> &[TypeId] {
+        self.traits.get(&TypeId::of::<T>()).unwrap()
     }
 }
 

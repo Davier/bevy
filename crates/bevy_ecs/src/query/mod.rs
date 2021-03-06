@@ -12,14 +12,22 @@ pub use state::*;
 
 #[cfg(test)]
 mod tests {
+    use bevy_reflect::{reflect_trait, Reflect, TypeRegistryArc};
+
     use crate::{
         component::{ComponentDescriptor, StorageType},
+        prelude::Entity,
+        reflect::ReflectComponent,
         world::World,
     };
 
-    #[derive(Debug, Eq, PartialEq)]
+    use super::Trait;
+
+    #[derive(Debug, Eq, PartialEq, Reflect, Default)]
+    #[reflect(TestTrait, Component)]
     struct A(usize);
-    #[derive(Debug, Eq, PartialEq)]
+    #[derive(Debug, Eq, PartialEq, Reflect, Default)]
+    #[reflect(TestTrait, Component)]
     struct B(usize);
 
     #[test]
@@ -56,5 +64,38 @@ mod tests {
 
         let values = world.query::<&B>().iter(&world).collect::<Vec<&B>>();
         assert_eq!(values, vec![&B(3)]);
+    }
+
+    #[reflect_trait]
+    pub trait TestTrait: std::fmt::Debug {
+        fn print(&self) {
+            dbg!(self);
+        }
+    }
+
+    impl TestTrait for A {}
+
+    impl TestTrait for B {}
+
+    #[test]
+    fn trait_query() {
+        let mut world = World::new();
+        let type_registry = world.get_resource_or_insert_with(|| TypeRegistryArc::default());
+        type_registry.write().register::<A>();
+        type_registry.write().register::<B>();
+        world.spawn().insert(A(1));
+        world.spawn().insert(B(2));
+        world.spawn().insert_bundle((A(3), B(4)));
+
+        for (entity, test_trait) in world
+            .query::<(Entity, Trait<ReflectTestTrait>)>()
+            .iter(&world)
+        {
+            dbg!(entity);
+            for (reflect_trait, reflect_value) in test_trait.iter() {
+                let value = reflect_trait.get(*reflect_value).unwrap();
+                value.print();
+            }
+        }
     }
 }

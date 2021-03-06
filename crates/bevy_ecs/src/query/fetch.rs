@@ -2,12 +2,15 @@ use crate::{
     archetype::{Archetype, ArchetypeComponentId},
     component::{Component, ComponentFlags, ComponentId, StorageType},
     entity::Entity,
+    prelude::ReflectComponent,
     query::{Access, FilteredAccess},
     storage::{ComponentSparseSet, Table, Tables},
     world::{Mut, World},
 };
 use bevy_ecs_macros::all_tuples;
+use bevy_reflect::{Reflect, TypeData, TypeRegistryArc};
 use std::{
+    any::TypeId,
     marker::PhantomData,
     ptr::{self, NonNull},
 };
@@ -437,6 +440,230 @@ impl<'w, T: Component> Fetch<'w> for WriteFetch<T> {
             value: &mut *self.table_components.as_ptr().add(table_row),
             flags: &mut *self.table_flags.add(table_row),
         }
+    }
+}
+
+// usage:
+// t.iter().map(|(reflect_trait, reflect_value)| reflect_trait.get(t.reflect_value))
+pub struct Trait<'w, T: TypeData + Clone> {
+    components: Vec<(T, &'w dyn Reflect)>,
+}
+
+impl<'a, T: TypeData + Clone> Trait<'a, T> {
+    pub fn iter(&self) -> std::slice::Iter<(T, &dyn Reflect)> {
+        self.components.iter()
+        // TODO: somehow include `get()` in [TypeData]
+        //.map(|(reflect_trait, reflect_value)| reflect_trait.get(reflect_value))
+    }
+}
+
+impl<'a, T: TypeData + Clone> WorldQuery for Trait<'a, T> {
+    type Fetch = TraitFetch<T>;
+    type State = TraitState<T>;
+}
+
+pub struct TraitState<T: TypeData + Clone> {
+    dense_components: Vec<(ComponentId, ReflectComponent, T, usize)>,
+    sparse_components: Vec<(ComponentId, ReflectComponent, T)>,
+}
+
+// SAFE: component access and archetype component access are properly updated to reflect that the types implementing T are read
+unsafe impl<T: TypeData + Clone> FetchState for TraitState<T> {
+    fn init(world: &mut World) -> Self {
+        let type_registry = world.get_resource::<TypeRegistryArc>().unwrap();
+        let type_registry = type_registry.read();
+        // get list of type ids implementing the trait
+        let type_ids: &[TypeId] = type_registry.get_trait_impls::<T>();
+        let mut dense_components = Vec::new();
+        let mut sparse_components = Vec::new();
+        for type_id in type_ids {
+            let component_id = world.components.get_id(*type_id).unwrap();
+            let reflect_trait = type_registry.get_type_data::<T>(*type_id).unwrap();
+            let reflect_component = type_registry
+                .get_type_data::<ReflectComponent>(*type_id)
+                .unwrap();
+            match world
+                .components
+                .get_info(component_id)
+                .unwrap()
+                .storage_type()
+            {
+                StorageType::Table => {
+                    let component_size = world
+                        .components
+                        .get_info(component_id)
+                        .unwrap()
+                        .layout()
+                        .size();
+                    dense_components.push((
+                        component_id,
+                        reflect_component.clone(),
+                        reflect_trait.clone(),
+                        component_size,
+                    ));
+                }
+                StorageType::SparseSet => {
+                    sparse_components.push((
+                        component_id,
+                        reflect_component.clone(),
+                        reflect_trait.clone(),
+                    ));
+                }
+            }
+        }
+        TraitState {
+            dense_components,
+            sparse_components,
+        }
+    }
+
+    fn update_component_access(&self, access: &mut FilteredAccess<ComponentId>) {
+        for component_id in self
+            .dense_components
+            .iter()
+            .map(|(component_id, ..)| component_id)
+            .chain(
+                self.sparse_components
+                    .iter()
+                    .map(|(component_id, ..)| component_id),
+            )
+        {
+            access.add_read(*component_id);
+        }
+    }
+
+    fn update_archetype_component_access(
+        &self,
+        archetype: &Archetype,
+        access: &mut Access<ArchetypeComponentId>,
+    ) {
+        for component_id in self
+            .dense_components
+            .iter()
+            .map(|(component_id, ..)| component_id)
+            .chain(
+                self.sparse_components
+                    .iter()
+                    .map(|(component_id, ..)| component_id),
+            )
+        {
+            if let Some(archetype_component_id) =
+                archetype.get_archetype_component_id(*component_id)
+            {
+                access.add_read(archetype_component_id);
+            }
+        }
+    }
+
+    fn matches_archetype(&self, archetype: &Archetype) -> bool {
+        self.dense_components
+            .iter()
+            .map(|(component_id, ..)| component_id)
+            .chain(
+                self.sparse_components
+                    .iter()
+                    .map(|(component_id, ..)| component_id),
+            )
+            .any(|component_id| archetype.contains(*component_id))
+    }
+
+    fn matches_table(&self, _table: &Table) -> bool {
+        false // FIXME
+    }
+}
+
+pub struct TraitFetch<T: TypeData + Clone> {
+    columns: Vec<(NonNull<u8>, ReflectComponent, T, usize)>,
+    sparse_sets: Vec<(*const ComponentSparseSet, ReflectComponent, T)>,
+    entity_table_rows: *const usize,
+    entities: *const Entity,
+}
+
+/// SAFE: access is read only  
+unsafe impl<T: TypeData + Clone> ReadOnlyFetch for TraitFetch<T> {}
+
+impl<'w, T: TypeData + Clone> Fetch<'w> for TraitFetch<T> {
+    type Item = Trait<'w, T>;
+    type State = TraitState<T>;
+
+    unsafe fn init(world: &World, state: &Self::State) -> Self {
+        let mut value = Self {
+            columns: Vec::new(),
+            sparse_sets: Vec::new(),
+
+            entities: ptr::null::<Entity>(),
+            entity_table_rows: ptr::null::<usize>(),
+        };
+        for (component_id, reflect_component, reflect_trait) in &state.sparse_components {
+            if let Some(sparse_set) = world.storages().sparse_sets.get(*component_id) {
+                value.sparse_sets.push((
+                    sparse_set,
+                    reflect_component.clone(),
+                    reflect_trait.clone(),
+                ));
+            }
+        }
+        value
+    }
+
+    unsafe fn set_archetype(
+        &mut self,
+        state: &Self::State,
+        archetype: &Archetype,
+        tables: &Tables,
+    ) {
+        self.entity_table_rows = archetype.entity_table_rows().as_ptr();
+        // SAFE: archetype tables always exist
+        let table = tables.get_unchecked(archetype.table_id());
+        self.columns.clear();
+        for (component_id, reflect_component, reflect_trait, component_size) in
+            &state.dense_components
+        {
+            if let Some(column) = table.get_column(*component_id) {
+                self.columns.push((
+                    column.get_ptr(),
+                    reflect_component.clone(),
+                    reflect_trait.clone(),
+                    *component_size,
+                ));
+            }
+        }
+        self.entities = archetype.entities().as_ptr()
+    }
+
+    unsafe fn archetype_fetch(&mut self, archetype_index: usize) -> Self::Item {
+        let mut components = Vec::new();
+        for (column, reflect_component, reflect_trait, component_size) in self.columns.iter() {
+            let table_row = *self.entity_table_rows.add(archetype_index);
+            let component_ptr =
+                NonNull::new(column.as_ptr().add(table_row * component_size)).unwrap();
+            let reflect_value = &*reflect_component
+                .reflect_component_ptr(component_ptr)
+                .as_ptr();
+            components.push((reflect_trait.clone(), std::mem::transmute(reflect_value)));
+        }
+        for (sparse_set, reflect_component, reflect_trait) in self.sparse_sets.iter() {
+            let entity = *self.entities.add(archetype_index);
+            let component_ptr = NonNull::new((**sparse_set).get(entity).unwrap()).unwrap();
+            let reflect_value = &*reflect_component
+                .reflect_component_ptr(component_ptr)
+                .as_ptr();
+            components.push((reflect_trait.clone(), std::mem::transmute(reflect_value)));
+        }
+        Trait { components }
+    }
+
+    fn is_dense(&self) -> bool {
+        // TODO
+        false
+    }
+
+    unsafe fn set_table(&mut self, _state: &Self::State, _table: &Table) {
+        todo!()
+    }
+
+    unsafe fn table_fetch(&mut self, _table_row: usize) -> Self::Item {
+        todo!()
     }
 }
 
